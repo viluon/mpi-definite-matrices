@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module Lib
 ( main
 ) where
@@ -12,11 +13,11 @@ import Data.Text (pack)
 
 main :: IO ()
 main = do
-  input <- getContents
+  input <- fmap (\case {';' -> ' '; ch -> ch}) <$> getContents
   let result = parseOnly (matrixParser <* endOfInput) $ pack input
   putStrLn $ case result of
     Left  err -> err
-    Right m   -> determineDefiniteness m
+    Right m   -> definiteness m
 
 matrixParser :: Parser (Matrix (Complex Double))
 matrixParser = loadMatrix =<< (skipSpace *> many' (double <* skipSpace))
@@ -27,8 +28,8 @@ matrixParser = loadMatrix =<< (skipSpace *> many' (double <* skipSpace))
       then fail "The provided matrix has to be square"
       else pure $ (n><n) $ (:+ 0) <$> xs
 
-determineDefiniteness :: Matrix (Complex Double) -> String
-determineDefiniteness m = flip orElse "indefinite" $
+definiteness :: Matrix (Complex Double) -> String
+definiteness m = flip orElse "indefinite" $
   foldl ((. uncurry classify) <$> (<|>)) Nothing classes
 
   where
