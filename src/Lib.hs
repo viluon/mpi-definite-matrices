@@ -3,14 +3,16 @@ module Lib
 ) where
 
 import Prelude hiding (lex)
-import Numeric.LinearAlgebra hiding (double)
+import Control.Applicative (Alternative((<|>)))
+import Numeric.LinearAlgebra
+    (realPart, Complex(..), eigenvalues, (><), toList, Matrix)
 import Data.Attoparsec.Text
+    (many', endOfInput, double, skipSpace, parseOnly, Parser)
 import Data.Text (pack)
 
 main :: IO ()
 main = do
   input <- getContents
-  print input
   let result = parseOnly (matrixParser <* endOfInput) $ pack input
   putStrLn $ case result of
     Left  err -> err
@@ -27,10 +29,12 @@ matrixParser = loadMatrix =<< (skipSpace *> many' (double <* skipSpace))
 
 determineDefiniteness :: Matrix (Complex Double) -> String
 determineDefiniteness m = flip orElse "indefinite" $
-  let eValues = realPart <$> toList (eigenvalues m)
-  in foldl (\acc (f, c) -> if all f eValues then Just $ acc `orElse` c else acc) Nothing classes
+  foldl ((. uncurry classify) <$> (<|>)) Nothing classes
 
   where
+    eValues = realPart <$> toList (eigenvalues m)
+    classify f c = if all f eValues then Just c else Nothing
+
     orElse Nothing  x = x
     orElse (Just x) _ = x
 
