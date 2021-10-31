@@ -2,22 +2,28 @@ module Lib
 ( main
 ) where
 
-import Numeric.LinearAlgebra
-import Text.ParserCombinators.ReadP
-import Text.Read.Lex
+import Prelude hiding (lex)
+import Numeric.LinearAlgebra hiding (double)
+import Data.Attoparsec.Text
+import Data.Text (pack)
 
 main :: IO ()
 main = do
   input <- getContents
-  let [(m, "")] = filter (null . snd) $ readP_to_S parse input
-  putStrLn $ determineDefiniteness m
+  print input
+  let result = parseOnly (matrixParser <* endOfInput) $ pack input
+  putStrLn $ case result of
+    Left  err -> err
+    Right m   -> determineDefiniteness m
 
-parse :: ReadP (Matrix (Complex Double))
-parse = loadMatrix <$> many (between skipSpaces skipSpaces readDecP)
+matrixParser :: Parser (Matrix (Complex Double))
+matrixParser = loadMatrix =<< (skipSpace *> many' (double <* skipSpace))
   where
-    loadMatrix xs =
+    loadMatrix xs = do
       let n = floor . sqrt . fromIntegral . length $ xs
-      in (n><n) xs
+      if n * n /= length xs
+      then fail "The provided matrix has to be square"
+      else pure $ (n><n) $ (:+ 0) <$> xs
 
 determineDefiniteness :: Matrix (Complex Double) -> String
 determineDefiniteness m = flip orElse "indefinite" $
